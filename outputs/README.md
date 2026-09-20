@@ -117,6 +117,24 @@ netsh wlan set profileparameter name="你的校园网SSID" connectionmode=auto
 - 认证成功 → 停止轮询，继续休眠
 - 网络状态变化（断线、换网）→ 自动重新开始检查
 
+### 可选：保活任务
+
+**开机自启每次登录只触发一次。** 如果后台进程因为崩溃、被安全软件结束、或被任务管理器误杀而退出，在下次登录之前它不会自己回来。
+
+装上保活任务可以补上这个缺口：
+
+```powershell
+powershell -File .\work\KeepAlive.ps1              # 安装（每 10 分钟一次）
+powershell -File .\work\KeepAlive.ps1 -Interval 5  # 改成 5 分钟
+powershell -File .\work\KeepAlive.ps1 -Remove      # 卸载
+```
+
+它每 10 分钟执行一次 `CampusFlow.exe --background`。程序自带单实例互斥锁，已在运行时新进程会立刻无声退出，所以**不会产生重复进程**，也不需要额外的看门狗。
+
+> 计划任务以**当前用户身份、仅在用户登录时**运行——后台服务要用用户的 DPAPI 凭据解密密码，换个身份就读不出来。
+
+**不加也没问题**：日常使用遇不到进程意外退出的情况。
+
 ---
 
 ## 输入输出示例
