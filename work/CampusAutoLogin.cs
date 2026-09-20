@@ -97,10 +97,13 @@ public sealed class PortalSettings
     //   - userid 必须是「学号 + 运营商后缀」，见下方后缀对照
     //   - 成功条件是响应 JSON 的 code == "0"
     //   - 参数里的空值（ssid/vlan/mac/hostname）是照着浏览器实际发出的请求保留的
-    public static string CampusRecipeJson()
+    // 运营商后缀用占位符，避免为每个运营商复制一整段 JSON。
+    // 门户要求账号写成「学号+后缀」，后缀错了会直接报"账号或密码不正确"，
+    // 所以给用户做成下拉选择，而不是让人去改 JSON。
+    public static string CampusRecipeJson(string operatorName, string suffix)
     {
-        return @"{
-  ""name"": ""校园网（移动 @gxyyd）"",
+        string json = @"{
+  ""name"": ""校园网（@OPERATOR@SUFFIX）"",
   ""settleMs"": 2500,
   ""successJson"": ""code"",
   ""successValue"": ""0"",
@@ -116,10 +119,11 @@ public sealed class PortalSettings
     {
       ""name"": ""提交认证"",
       ""method"": ""GET"",
-      ""url"": ""http://211.69.15.10:6060/quickauth.do?userid={username:url}@gxyyd&passwd={password:url}&wlanuserip={local_ip:url}&wlanacname=HAIT-SR8808&wlanacIp=172.21.8.73&ssid=&vlan=&mac=&version=0&portalpageid={portalpageid:url}&timestamp={timestamp:url}&uuid={uuid:url}&portaltype=0&hostname=""
+      ""url"": ""http://211.69.15.10:6060/quickauth.do?userid={username:url}@SUFFIX&passwd={password:url}&wlanuserip={local_ip:url}&wlanacname=HAIT-SR8808&wlanacIp=172.21.8.73&ssid=&vlan=&mac=&version=0&portalpageid={portalpageid:url}&timestamp={timestamp:url}&uuid={uuid:url}&portaltype=0&hostname=""
     }
   ]
 }";
+        return json.Replace("@OPERATOR", operatorName).Replace("@SUFFIX", suffix);
     }
 }
 
@@ -1377,13 +1381,25 @@ sealed class MainForm : Form
         page.Controls.Add(card);
 
         recipePreset.DropDownStyle = ComboBoxStyle.DropDownList;
-        recipePreset.Items.AddRange(new object[] { "自定义", "河北移动（与扁平配置等价）", "校园网（安冉云门户）" });
+        // 运营商分成独立条目，而不是让用户去改 JSON 里的后缀——
+        // 后缀填错的报错是"账号或密码不正确"，普通人根本猜不到是这个原因。
+        recipePreset.Items.AddRange(new object[] {
+            "自定义",
+            "河北移动（与扁平配置等价）",
+            "本校校园网 · 移动",
+            "本校校园网 · 联通",
+            "本校校园网 · 电信",
+            "本校校园网 · 本地账号"
+        });
         StyleCombo(recipePreset);
         recipePreset.SelectedIndex = 0;   // 必须在挂事件之前，否则初始化就会触发填充
         recipePreset.SelectedIndexChanged += delegate
         {
             if (recipePreset.SelectedIndex == 1) recipeJson.Text = PortalSettings.HebeiRecipeJson();
-            if (recipePreset.SelectedIndex == 2) recipeJson.Text = PortalSettings.CampusRecipeJson();
+            if (recipePreset.SelectedIndex == 2) recipeJson.Text = PortalSettings.CampusRecipeJson("移动", "@gxyyd");
+            if (recipePreset.SelectedIndex == 3) recipeJson.Text = PortalSettings.CampusRecipeJson("联通", "@gxylt");
+            if (recipePreset.SelectedIndex == 4) recipeJson.Text = PortalSettings.CampusRecipeJson("电信", "@gxydx");
+            if (recipePreset.SelectedIndex == 5) recipeJson.Text = PortalSettings.CampusRecipeJson("本地", "@gxylocal");
         };
         AddField(card, "预设", recipePreset, 28, 20, 320);
 

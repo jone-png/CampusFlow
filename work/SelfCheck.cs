@@ -81,7 +81,7 @@ static class SelfCheck
         Check(error != null && error.Contains("数量必须一致"), "并列提取数量不匹配被拦下：" + error);
 
         // ---- 校园网门户预设 ----
-        AuthRecipe campus = RecipeEngine.Parse(PortalSettings.CampusRecipeJson(), out error);
+        AuthRecipe campus = RecipeEngine.Parse(PortalSettings.CampusRecipeJson("移动", "@gxyyd"), out error);
         Check(campus != null && error == null, "校园网预设能解析" + (error == null ? "" : "：" + error));
         if (campus != null)
         {
@@ -101,6 +101,25 @@ static class SelfCheck
             string realBad = "{\"code\":\"7\",\"message\":\"账号或密码不正确\"}";
             Check(RecipeEngine.JsonPath(realOk, campus.SuccessJson) == "0", "真实成功响应取到 code=0");
             Check(RecipeEngine.JsonPath(realBad, campus.SuccessJson) == "7", "真实失败响应取到 code=7（不会被误判为成功）");
+
+            // 后缀替换要对每个运营商都生效：漏一个就会让那个运营商的用户
+            // 收到"账号或密码不正确"，而完全猜不到是后缀问题。
+            string[][] ops = new string[][] {
+                new string[] { "移动", "@gxyyd" },
+                new string[] { "联通", "@gxylt" },
+                new string[] { "电信", "@gxydx" },
+                new string[] { "本地", "@gxylocal" }
+            };
+            foreach (string[] op in ops)
+            {
+                AuthRecipe r = RecipeEngine.Parse(PortalSettings.CampusRecipeJson(op[0], op[1]), out error);
+                bool ok = r != null
+                    && r.Name.Contains(op[0])
+                    && r.Steps[1].Url.Contains("@" + op[1].TrimStart('@'))
+                    && !r.Steps[1].Url.Contains("@SUFFIX")     // 占位符必须被替换干净
+                    && !r.Name.Contains("@OPERATOR");
+                Check(ok, "运营商预设「" + op[0] + " " + op[1] + "」后缀替换正确");
+            }
         }
 
         // ---- JSON 提取 ----
