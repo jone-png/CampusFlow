@@ -11,3 +11,4 @@ credentials.json
 
 # 分享包（由 share/使用说明.txt + outputs/CampusFlow.exe 打包而成，可随时重建）
 share/*.zip
+share/*.exe
